@@ -14,6 +14,15 @@ const MODEL_MAP = {
   wardrobe:     { file: './models/cabinet_medium.gltf', scale: 2.2, rotY: 0 },
 };
 
+// Swap catalog — hardcoded alternatives for demo
+const SWAP_CATALOG = {
+  sofa: [
+    { label: "Sofa",     w: 2.2, d: 0.9, h: 0.85, color: "#4A90D9", model: './models/couch_pillows.gltf' },
+    { label: "Armchair", w: 0.75, d: 0.75, h: 0.9, color: "#C97B4B", model: './models/chair_A.gltf' },
+  ]
+};
+const swapState = {};  // tracks current variant index per item id
+
 // Mutable room state (source of truth for positions)
 // Structure matches the demo data JSON — spatial.js accesses roomState.room and roomState.furniture
 export const roomState = {
@@ -35,6 +44,8 @@ furnitureData.forEach(item => { positionHistory[item.id] = []; });
 const labels = {};
 let _camera = null;
 let _labelContainer = null;
+let _scene = null;
+let _loader = null;
 
 function buildDeskGeometry(item) {
   const group = new THREE.Group();
@@ -100,6 +111,8 @@ function buildFallbackBox(item) {
 
 export function initFurniture(scene, camera, loader) {
   _camera = camera;
+  _scene = scene;
+  _loader = loader;
   _labelContainer = document.getElementById('label-container');
 
   let modelsToLoad = 0;

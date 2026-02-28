@@ -8,6 +8,35 @@ import { getFurnitureRefParts } from './furniture-interact.js';
 let _scene, _camera, _renderer;
 let renderActive = false;
 
+// Gemini-supported aspect ratios (from API docs)
+const ASPECT_RATIOS = [
+  { str: '1:1',   val: 1 },
+  { str: '1:4',   val: 1/4 },
+  { str: '1:8',   val: 1/8 },
+  { str: '2:3',   val: 2/3 },
+  { str: '3:2',   val: 3/2 },
+  { str: '3:4',   val: 3/4 },
+  { str: '4:1',   val: 4/1 },
+  { str: '4:3',   val: 4/3 },
+  { str: '4:5',   val: 4/5 },
+  { str: '5:4',   val: 5/4 },
+  { str: '8:1',   val: 8/1 },
+  { str: '9:16',  val: 9/16 },
+  { str: '16:9',  val: 16/9 },
+  { str: '21:9',  val: 21/9 },
+];
+
+function getClosestAspectRatio(w, h) {
+  const ratio = w / h;
+  let closest = ASPECT_RATIOS[0];
+  let minDiff = Infinity;
+  for (const ar of ASPECT_RATIOS) {
+    const diff = Math.abs(ar.val - ratio);
+    if (diff < minDiff) { minDiff = diff; closest = ar; }
+  }
+  return closest.str;
+}
+
 const renderOverlay = document.getElementById('render-overlay');
 const renderImg = document.getElementById('render-img');
 const btnRender = document.getElementById('btn-render');
@@ -72,6 +101,7 @@ export async function handleRenderClick() {
   setTranscript('Rendering from your current viewpoint — hold on...');
 
   try {
+    const t0 = performance.now();
     const screenshotBase64 = captureCanvas();
     let stylePrompt = buildImg2ImgPrompt();
 
@@ -83,6 +113,12 @@ export async function handleRenderClick() {
     ];
     if (furnitureRef) contentParts.push(...furnitureRef.parts);
 
+    // Compute aspect ratio from actual canvas dimensions
+    const canvasW = _renderer.domElement.width;
+    const canvasH = _renderer.domElement.height;
+    const aspectRatio = getClosestAspectRatio(canvasW, canvasH);
+    console.log('[Render] Canvas:', canvasW, 'x', canvasH, '-> aspect ratio:', aspectRatio);
+
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + IMAGE_MODEL + ':generateContent';
     const response = await fetch(url, {
       method: 'POST',
@@ -92,25 +128,60 @@ export async function handleRenderClick() {
       },
       body: JSON.stringify({
         contents: [{ parts: contentParts }],
-        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE'],
+          imageConfig: {
+            aspectRatio: aspectRatio,
+            imageSize: '2K'
+          },
+          thinkingConfig: {
+            thinkingLevel: 'High'
+          }
+        }
       })
     });
 
+    const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+    console.log('[Render] API responded in', elapsed, 's — status:', response.status);
+
     if (!response.ok) {
+      const errBody = await response.json().catch(function() { return {}; });
+      console.error('[Render] API error body:', JSON.stringify(errBody, null, 2));
       throw new Error('API returned ' + response.status);
     }
 
     const data = await response.json();
     const candidate = data.candidates && data.candidates[0];
     if (!candidate || !candidate.content || !candidate.content.parts) {
+      console.error('[Render] Unexpected response structure:', JSON.stringify(data, null, 2));
       throw new Error('Empty or filtered response from API');
     }
     const parts = candidate.content.parts;
+
+    // Debug: log what part types came back
+    const partTypes = parts.map(function(p) {
+      if (p.inlineData) return 'image (' + p.inlineData.mimeType + ')';
+      if (p.thought) return 'thought';
+      if (p.text) return 'text';
+      return 'unknown';
+    });
+    console.log('[Render] Response parts:', partTypes);
+
+    // Check for thinking output (proves thinkingConfig is active)
+    const thoughtPart = parts.find(function(p) { return p.thought; });
+    if (thoughtPart) console.log('[Render] Thinking active — thought preview:', thoughtPart.text && thoughtPart.text.substring(0, 200));
+
     const imagePart = parts.find(p => p.inlineData);
     if (!imagePart) throw new Error('No image in response');
 
     const imgSrc = 'data:' + imagePart.inlineData.mimeType + ';base64,' + imagePart.inlineData.data;
     renderImg.src = imgSrc;
+
+    // Verify output dimensions match requested aspect ratio
+    renderImg.onload = function() {
+      console.log('[Render] Output image:', this.naturalWidth, 'x', this.naturalHeight);
+      console.log('[Render] Output ratio:', (this.naturalWidth / this.naturalHeight).toFixed(3), '— requested:', aspectRatio);
+    };
     renderOverlay.classList.add('active');
     renderActive = true;
 
