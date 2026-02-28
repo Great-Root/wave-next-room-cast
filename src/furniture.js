@@ -4,21 +4,23 @@ export const furnitureData = [
   { id: "sofa",         label: "Sofa",         w: 2.2, d: 0.9, h: 0.85, x: 1.5, z: 2.0, rotation: 0, color: "#4A90D9" },
   { id: "bed",          label: "Queen Bed",    w: 1.6, d: 2.0, h: 0.50, x: 3.0, z: 5.0, rotation: 0, color: "#7B68EE" },
   { id: "desk",         label: "Desk",         w: 1.2, d: 0.6, h: 0.75, x: 1.0, z: 6.5, rotation: 0, color: "#8B6914" },
-  { id: "wardrobe",     label: "Wardrobe",     w: 1.2, d: 0.6, h: 2.0,  x: 4.0, z: 1.0, rotation: 0, color: "#5D4037" },
+  { id: "armchair",     label: "Armchair",     w: 0.75, d: 0.75, h: 0.9, x: 1.0, z: 5.8, rotation: 0, color: "#C97B4B" },
+  { id: "wardrobe",     label: "Wardrobe",     w: 1.2, d: 0.6, h: 1.0,  x: 4.0, z: 1.0, rotation: 0, color: "#5D4037" },
   { id: "coffee_table", label: "Coffee Table", w: 1.0, d: 0.5, h: 0.45, x: 1.5, z: 3.0, rotation: 0, color: "#A0522D" }
 ];
 
 const MODEL_MAP = {
-  sofa:         { file: './models/couch_pillows.gltf', scale: 1.8, rotY: 0 },
-  bed:          { file: './models/bed_double_A.gltf',  scale: 2.0, rotY: 0 },
-  wardrobe:     { file: './models/cabinet_medium.gltf', scale: 2.2, rotY: 0 },
+  sofa:         { file: './models/couch_pillows.gltf' },
+  bed:          { file: './models/bed_double_A.gltf' },
+  wardrobe:     { file: './models/cabinet_medium.gltf' },
+  armchair:     { file: './models/chair_A.gltf' },
 };
 
 // Swap catalog — hardcoded alternatives for demo
 const SWAP_CATALOG = {
   sofa: [
     { label: "Sofa",     w: 2.2, d: 0.9, h: 0.85, color: "#4A90D9", model: './models/couch_pillows.gltf' },
-    { label: "Armchair", w: 0.75, d: 0.75, h: 0.9, color: "#C97B4B", model: './models/chair_A.gltf' },
+    { label: "Loveseat", w: 1.5, d: 0.85, h: 0.80, color: "#4A90D9", model: './models/couch_pillows.gltf' },
   ]
 };
 const swapState = {};  // tracks current variant index per item id
@@ -39,6 +41,9 @@ export const meshes = {};
 // Per-item position history (last 10 moves)
 const positionHistory = {};
 furnitureData.forEach(item => { positionHistory[item.id] = []; });
+
+// Track pending animation targets so we can snap on interruption
+const pendingTarget = {};
 
 // Label tracking
 const labels = {};
@@ -140,15 +145,15 @@ export function initFurniture(scene, camera, loader) {
       loader.load(mapping.file, (gltf) => {
         const model = gltf.scene;
 
-        // Normalize size via bounding box
+        // Normalize size via bounding box — scale each axis to match declared w, d
         const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
         box.getSize(size);
 
-        const targetSize = Math.max(item.w, item.d);
-        const currentSize = Math.max(size.x, size.z);
-        const s = targetSize / currentSize;
-        model.scale.set(s, s, s);
+        const sx = item.w / size.x;
+        const sy = item.h / size.y;
+        const sz = item.d / size.z;
+        model.scale.set(sx, sy, sz);
 
         // Recompute after scaling, sit on floor
         box.setFromObject(model);
@@ -217,7 +222,15 @@ export function animateFurniture(itemId, newX, newZ, newRotation) {
   const obj = meshes[itemId];
   if (!obj) return;
 
-  // Save position history (caller is responsible for updating roomState)
+  // If a previous animation was in-flight, snap to its target first
+  const prev = pendingTarget[itemId];
+  if (prev) {
+    obj.position.x = prev.x;
+    obj.position.z = prev.z;
+    obj.rotation.y = prev.rad;
+  }
+
+  // Save position history (now guaranteed to be at a real position, not mid-lerp)
   const history = positionHistory[itemId];
   if (history) {
     const currentRotDeg = obj.rotation.y * 180 / Math.PI;
@@ -229,6 +242,9 @@ export function animateFurniture(itemId, newX, newZ, newRotation) {
   const startZ = obj.position.z;
   const startRad = obj.rotation.y;
   const targetRad = (newRotation != null) ? newRotation * Math.PI / 180 : startRad;
+
+  // Record this animation's target for potential interruption
+  pendingTarget[itemId] = { x: newX, z: newZ, rad: targetRad };
 
   // Shortest-path angle wrapping
   let deltaRad = targetRad - startRad;
@@ -244,6 +260,7 @@ export function animateFurniture(itemId, newX, newZ, newRotation) {
     obj.position.z = startZ + (newZ - startZ) * ease;
     obj.rotation.y = startRad + deltaRad * ease;
     if (t < 1) requestAnimationFrame(step);
+    else delete pendingTarget[itemId];
   }
   requestAnimationFrame(step);
 }
@@ -279,4 +296,90 @@ export function undoLastMove(itemId) {
   }
   requestAnimationFrame(step);
   return true;
+}
+
+export function swapFurniture(itemId) {
+  const catalog = SWAP_CATALOG[itemId];
+  if (!catalog || catalog.length < 2) return null;
+
+  // Cycle to next variant
+  const current = swapState[itemId] || 0;
+  const next = (current + 1) % catalog.length;
+  swapState[itemId] = next;
+  const variant = catalog[next];
+
+  // Find data entries to mutate
+  const fdItem = furnitureData.find(f => f.id === itemId);
+  const rsItem = roomState.furniture.find(f => f.id === itemId);
+  if (!fdItem || !rsItem) return null;
+
+  // Preserve current position and rotation
+  const posX = rsItem.x;
+  const posZ = rsItem.z;
+  const rotDeg = rsItem.rotation;
+
+  // Update both data sources with new variant's properties
+  for (const target of [fdItem, rsItem]) {
+    target.label = variant.label;
+    target.w = variant.w;
+    target.d = variant.d;
+    target.h = variant.h;
+    target.color = variant.color;
+  }
+
+  // Remove old mesh from scene
+  const oldMesh = meshes[itemId];
+  if (oldMesh) _scene.remove(oldMesh);
+  delete meshes[itemId];
+
+  // Clear position history — undo across swaps makes no sense
+  positionHistory[itemId] = [];
+
+  // Update label text
+  if (labels[itemId]) {
+    labels[itemId].el.textContent = variant.label;
+    labels[itemId].heightOffset = variant.h + 0.2;
+  }
+
+  // Load new glTF model (same normalization logic as initFurniture)
+  _loader.load(variant.model, (gltf) => {
+    const model = gltf.scene;
+
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const sx = variant.w / size.x;
+    const sy = variant.h / size.y;
+    const sz = variant.d / size.z;
+    model.scale.set(sx, sy, sz);
+
+    // Recompute after scaling, sit on floor
+    box.setFromObject(model);
+    model.position.set(posX, -box.min.y, posZ);
+    model.rotation.y = rotDeg * Math.PI / 180;
+
+    model.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+
+    _scene.add(model);
+    meshes[itemId] = model;
+
+    // Update label height from actual model
+    box.setFromObject(model);
+    if (labels[itemId]) labels[itemId].heightOffset = box.max.y + 0.15;
+  }, undefined, (err) => {
+    console.warn('Failed to load swap model for', itemId, err);
+    const group = buildFallbackBox(fdItem);
+    group.position.set(posX, 0, posZ);
+    group.rotation.y = rotDeg * Math.PI / 180;
+    _scene.add(group);
+    meshes[itemId] = group;
+  });
+
+  return variant;
 }
