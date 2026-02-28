@@ -23,12 +23,6 @@ Built for the **Gemini 3 Seoul Hackathon** (February 28, 2026).
 - **WebXR VR** — Connect a VR headset and click the VR button to explore the room in virtual reality.
 - **5 Camera Presets** — Corner, Bird's Eye, From Door, From Window, and Side views with smooth animated transitions.
 
----
-
-## Architecture
-![Uploading architecture-RoomCast Architecture.drawio.png…]()
-
-
 
 ---
 
