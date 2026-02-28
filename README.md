@@ -8,6 +8,11 @@ RoomCast lets you see your furniture placed in a navigable 3D room and rearrange
 
 Built for the **Gemini 3 Seoul Hackathon** (February 28, 2026).
 
+---
+
+## Architecture
+
+
 ![RoomCast Architecture](src/architecture-RoomCast%20Architecture.drawio.png)
 
 ---
