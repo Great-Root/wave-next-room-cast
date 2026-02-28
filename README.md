@@ -24,13 +24,6 @@ Built for the **Gemini 3 Seoul Hackathon** (February 28, 2026).
 - **5 Camera Presets** — Corner, Bird's Eye, From Door, From Window, and Side views with smooth animated transitions.
 
 
----
-
-## Architecture
-
-<h2>🏗 Architecture</h2>
-<img src="./docs/architecture.png" width="800"/>
-
 
 ---
 
