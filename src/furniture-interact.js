@@ -96,6 +96,7 @@ const FURNITURE_LABELS = {
   sofa: 'Sofa',
   bed: 'Bed',
   desk: 'Desk',
+  armchair: 'Armchair',
   wardrobe: 'Wardrobe',
   coffee_table: 'Coffee Table',
 };
