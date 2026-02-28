@@ -4,26 +4,27 @@ import { GEMINI_API_KEY, IMAGE_MODEL } from './config.js';
 import { furnitureData } from './furniture.js';
 import { setStatus, setTranscript } from './ui.js';
 import { getFurnitureRefParts } from './furniture-interact.js';
+import * as THREE from 'three';
 
 let _scene, _camera, _renderer;
 let renderActive = false;
 
 // Gemini-supported aspect ratios (from API docs)
 const ASPECT_RATIOS = [
-  { str: '1:1',   val: 1 },
-  { str: '1:4',   val: 1/4 },
-  { str: '1:8',   val: 1/8 },
-  { str: '2:3',   val: 2/3 },
-  { str: '3:2',   val: 3/2 },
-  { str: '3:4',   val: 3/4 },
-  { str: '4:1',   val: 4/1 },
-  { str: '4:3',   val: 4/3 },
-  { str: '4:5',   val: 4/5 },
-  { str: '5:4',   val: 5/4 },
-  { str: '8:1',   val: 8/1 },
-  { str: '9:16',  val: 9/16 },
-  { str: '16:9',  val: 16/9 },
-  { str: '21:9',  val: 21/9 },
+  { str: '1:1', val: 1 },
+  { str: '1:4', val: 1 / 4 },
+  { str: '1:8', val: 1 / 8 },
+  { str: '2:3', val: 2 / 3 },
+  { str: '3:2', val: 3 / 2 },
+  { str: '3:4', val: 3 / 4 },
+  { str: '4:1', val: 4 / 1 },
+  { str: '4:3', val: 4 / 3 },
+  { str: '4:5', val: 4 / 5 },
+  { str: '5:4', val: 5 / 4 },
+  { str: '8:1', val: 8 / 1 },
+  { str: '9:16', val: 9 / 16 },
+  { str: '16:9', val: 16 / 9 },
+  { str: '21:9', val: 21 / 9 },
 ];
 
 function getClosestAspectRatio(w, h) {
@@ -54,8 +55,27 @@ export function initRender(sceneRef, cameraRef, rendererRef) {
 }
 
 function captureCanvas() {
+
+  // 현재 상태 저장
+  const originalPixelRatio = _renderer.getPixelRatio();
+  const originalSize = _renderer.getSize(new THREE.Vector2());
+
+  // 고해상도 설정
+  const upscaleFactor = 2; // 2배 해상도
+  _renderer.setPixelRatio(upscaleFactor);
+  _renderer.setSize(originalSize.x, originalSize.y, false);
+
+  // 렌더
   _renderer.render(_scene, _camera);
-  const dataUrl = _renderer.domElement.toDataURL('image/jpeg', 0.85);
+
+  // 고품질 캡처
+  const dataUrl = _renderer.domElement.toDataURL('image/jpeg', 0.95);
+
+  // 원래 상태 복구
+  _renderer.setPixelRatio(originalPixelRatio);
+  _renderer.setSize(originalSize.x, originalSize.y, false);
+  _renderer.render(_scene, _camera);
+
   return dataUrl.split(',')[1];
 }
 
@@ -88,14 +108,44 @@ function buildImg2ImgPrompt() {
     f.label + ' (the ' + f.color + ' shape, ' + f.w + 'm x ' + f.d + 'm)'
   ).join(', ');
 
-  return 'This image is a 3D layout mockup of a real apartment room (5m x 8m, 2.7m ceilings). ' +
-    'Transform it into a photorealistic interior photograph while keeping EVERY piece of furniture ' +
-    'in the EXACT same position, same size, and same camera angle. Do not move, add, or remove anything. ' +
-    'The furniture in the scene: ' + legend + '. ' +
-    'The room has: honey hardwood floor with wood grain, off-white plaster walls, ' +
-    'a large window on the far wall with warm afternoon sunlight, and a wooden door. ' +
-    'Make all materials realistic — real fabric on the sofa, real wood on the desk and table, real bedding on the bed. ' +
-    'Style: Architectural Digest editorial photography. Warm natural light, soft shadows, slight depth of field.';
+  return `
+CRITICAL: STRICT PRESERVATION MODE (NO NEW OBJECTS)
+
+This is NOT a creative generation task.
+This is a photorealistic re-render of the EXACT input image.
+
+GROUND TRUTH RULE:
+Treat the input image as immutable ground-truth geometry.
+
+ABSOLUTE CONSTRAINTS (MUST FOLLOW):
+- Do NOT add ANY new objects of any kind.
+- Do NOT add wardrobes/cabinets/closets/shelves/dressers/plants/pictures/lamps/rugs/curtains.
+- Do NOT remove any existing object.
+- Do NOT move, rotate, or scale any object.
+- Do NOT change camera angle/perspective/framing.
+- Do NOT change wall/window/floor geometry.
+- Preserve outside scenery exactly as input.
+
+OBJECT WHITELIST (ONLY these objects may appear in the output):
+${allowed}
+
+If an object is not on the whitelist, it MUST NOT appear.
+
+FURNITURE DETAILS (keep exact placement and proportions):
+${legend}
+
+TASK:
+Convert the input 3D capture into a photorealistic interior photograph
+by ONLY improving materials, lighting, and shadows.
+No layout edits. No object edits. No additions.
+
+PHOTO STYLE:
+Neutral DSLR photo, natural daylight, soft realistic shadows,
+physically plausible materials, no stylization, no hallucinations.
+
+FINAL CHECK:
+Output must contain EXACTLY the same set of objects as the input (whitelist only).
+`;
 }
 
 function exitRender() {
@@ -133,9 +183,11 @@ export async function handleRenderClick() {
     // Merge furniture reference images if available
     const furnitureRef = getFurnitureRefParts();
     const contentParts = [
-      { text: (furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt) +
-        ' I am also providing a top-down birdseye view of the room layout for spatial reference. ' +
-        'Use it to understand exact furniture positions, but render from the first image\'s camera angle.' },
+      {
+        text: (furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt) +
+          ' I am also providing a top-down birdseye view of the room layout for spatial reference. ' +
+          'Use it to understand exact furniture positions, but render from the first image\'s camera angle.'
+      },
       { inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } },
       { inlineData: { mimeType: 'image/jpeg', data: topViewBase64 } }
     ];
@@ -173,7 +225,7 @@ export async function handleRenderClick() {
     console.log('[Render] API responded in', elapsed, 's — status:', response.status);
 
     if (!response.ok) {
-      const errBody = await response.json().catch(function() { return {}; });
+      const errBody = await response.json().catch(function () { return {}; });
       console.error('[Render] API error body:', JSON.stringify(errBody, null, 2));
       throw new Error('API returned ' + response.status);
     }
@@ -187,7 +239,7 @@ export async function handleRenderClick() {
     const parts = candidate.content.parts;
 
     // Debug: log what part types came back
-    const partTypes = parts.map(function(p) {
+    const partTypes = parts.map(function (p) {
       if (p.inlineData) return 'image (' + p.inlineData.mimeType + ')';
       if (p.thought) return 'thought';
       if (p.text) return 'text';
@@ -196,7 +248,7 @@ export async function handleRenderClick() {
     console.log('[Render] Response parts:', partTypes);
 
     // Check for thinking output (proves thinkingConfig is active)
-    const thoughtPart = parts.find(function(p) { return p.thought; });
+    const thoughtPart = parts.find(function (p) { return p.thought; });
     if (thoughtPart) console.log('[Render] Thinking active — thought preview:', thoughtPart.text && thoughtPart.text.substring(0, 200));
 
     const imagePart = parts.find(p => p.inlineData);
@@ -206,7 +258,7 @@ export async function handleRenderClick() {
     renderImg.src = imgSrc;
 
     // Verify output dimensions match requested aspect ratio
-    renderImg.onload = function() {
+    renderImg.onload = function () {
       console.log('[Render] Output image:', this.naturalWidth, 'x', this.naturalHeight);
       console.log('[Render] Output ratio:', (this.naturalWidth / this.naturalHeight).toFixed(3), '— requested:', aspectRatio);
     };
