@@ -1,0 +1,11 @@
+tests/env.js
+src/env.js
+legacy/delete/
+spec/
+CLAUDE.md
+.claude/
+
+tests/
+testing/
+etc/
+report_history/

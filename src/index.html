@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoomCast</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="loading">Loading models...</div>
+<div id="label-container"></div>
+<div id="fp-crosshair"></div>
+<div id="fp-instructions">
+  <div class="title">Walk Mode</div>
+  <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> to move<br>
+  Mouse to look around<br>
+  <kbd>Shift</kbd> to sprint<br>
+  <div class="hint">Click anywhere to start — press Escape to exit</div>
+</div>
+
+<div id="viewpoints">
+  <button data-view="corner" class="active">Corner</button>
+  <button data-view="birdseye">Bird's Eye</button>
+  <button data-view="entrance">From Door</button>
+  <button data-view="window">From Window</button>
+  <button data-view="side">Side</button>
+  <button id="btn-walk">Walk</button>
+</div>
+
+<div id="api-dot"></div>
+
+<div id="render-overlay">
+  <img id="render-img" src="" alt="Render" />
+  <div class="hint">Press Escape or click Render again to return to 3D</div>
+</div>
+
+<div id="ui-panel">
+  <div id="transcript">
+    <span class="reply">Type an instruction below and press Send.</span>
+  </div>
+  <div id="controls-row">
+    <input id="text-input" type="text" placeholder="Try: move the sofa near the window" />
+    <button id="btn-send">Send</button>
+    <button id="btn-mic" title="Hold to speak">MIC</button>
+    <button id="btn-render">Render</button>
+  </div>
+  <div id="status">Ready</div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
