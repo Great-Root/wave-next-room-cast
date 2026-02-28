@@ -149,6 +149,9 @@ button {
 #btn-render { background: #6c5ce7; color: #fff; }
 #btn-render:hover { background: #7f70f0; }
 
+#btn-swap { background: #e67e22; color: #fff; }
+#btn-swap:hover { background: #f09030; }
+
 #status {
   color: rgba(255,255,255,0.4);
   font-size: 11px;

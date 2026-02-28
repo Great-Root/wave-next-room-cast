@@ -17,7 +17,7 @@ const MODEL_MAP = {
 };
 
 // Swap catalog — hardcoded alternatives for demo
-const SWAP_CATALOG = {
+export const SWAP_CATALOG = {
   sofa: [
     { label: "Sofa",     w: 2.2, d: 0.9, h: 0.85, color: "#4A90D9", model: './models/couch_pillows.gltf' },
     { label: "Loveseat", w: 1.5, d: 0.85, h: 0.80, color: "#4A90D9", model: './models/couch.gltf' },
