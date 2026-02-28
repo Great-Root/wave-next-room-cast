@@ -59,6 +59,30 @@ function captureCanvas() {
   return dataUrl.split(',')[1];
 }
 
+function captureTopView() {
+  // Save current camera state
+  const savedPos = _camera.position.clone();
+  const savedRot = _camera.quaternion.clone();
+  const savedFov = _camera.fov;
+
+  // Move to birdseye position
+  _camera.position.set(2.5, 10, 4);
+  _camera.fov = 55;
+  _camera.updateProjectionMatrix();
+  _camera.lookAt(2.5, 0, 4);
+
+  _renderer.render(_scene, _camera);
+  const dataUrl = _renderer.domElement.toDataURL('image/jpeg', 0.85);
+
+  // Restore camera state
+  _camera.position.copy(savedPos);
+  _camera.quaternion.copy(savedRot);
+  _camera.fov = savedFov;
+  _camera.updateProjectionMatrix();
+
+  return dataUrl.split(',')[1];
+}
+
 function buildImg2ImgPrompt() {
   const legend = furnitureData.map(f =>
     f.label + ' (the ' + f.color + ' shape, ' + f.w + 'm x ' + f.d + 'm)'
@@ -103,13 +127,17 @@ export async function handleRenderClick() {
   try {
     const t0 = performance.now();
     const screenshotBase64 = captureCanvas();
+    const topViewBase64 = captureTopView();
     let stylePrompt = buildImg2ImgPrompt();
 
     // Merge furniture reference images if available
     const furnitureRef = getFurnitureRefParts();
     const contentParts = [
-      { text: furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt },
-      { inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } }
+      { text: (furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt) +
+        ' I am also providing a top-down birdseye view of the room layout for spatial reference. ' +
+        'Use it to understand exact furniture positions, but render from the first image\'s camera angle.' },
+      { inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } },
+      { inlineData: { mimeType: 'image/jpeg', data: topViewBase64 } }
     ];
     if (furnitureRef) contentParts.push(...furnitureRef.parts);
 
