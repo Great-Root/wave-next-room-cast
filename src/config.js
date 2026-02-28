@@ -8,7 +8,6 @@ try {
 export const GEMINI_API_KEY = _apiKey;
 export const GEMINI_MODEL = 'gemini-3.1-pro-preview';
 export const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
-export const LIVE_API_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 export const ROOM_WIDTH = 5;
 export const ROOM_LENGTH = 8;
 export const ROOM_HEIGHT = 2.7;
