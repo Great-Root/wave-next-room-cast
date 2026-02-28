@@ -1,6 +1,7 @@
 // furniture-interact.js — Click any furniture → reference image upload + hover highlight
 
 import * as THREE from 'three';
+import { furnitureData } from './furniture.js';
 
 // --- Module state ---
 let _scene, _camera, _renderer, _meshes, _getFPMode;
@@ -91,15 +92,14 @@ fileInput.accept = 'image/*';
 fileInput.style.display = 'none';
 document.body.appendChild(fileInput);
 
-// --- Furniture label map ---
-const FURNITURE_LABELS = {
-  sofa: 'Sofa',
-  bed: 'Bed',
-  desk: 'Desk',
-  armchair: 'Armchair',
-  wardrobe: 'Wardrobe',
-  coffee_table: 'Coffee Table',
-};
+// --- Furniture label helpers (derived from furnitureData — single source of truth) ---
+function getFurnitureLabel(id) {
+  const item = furnitureData.find(f => f.id === id);
+  return item ? item.label : id;
+}
+function getFurnitureIds() {
+  return furnitureData.map(f => f.id);
+}
 
 // --- Indicator UI ---
 function renderIndicators() {
@@ -115,7 +115,7 @@ function renderIndicators() {
 
     const label = document.createElement('span');
     label.className = 'furn-ref-label';
-    label.textContent = (FURNITURE_LABELS[id] || id) + ' ref';
+    label.textContent = getFurnitureLabel(id) + ' ref';
 
     const removeBtn = document.createElement('button');
     removeBtn.className = 'furn-ref-remove';
@@ -159,7 +159,7 @@ function collectFurnitureMeshes() {
   _allFurnitureMeshes = [];
   if (!_meshes) return;
 
-  for (const id of Object.keys(FURNITURE_LABELS)) {
+  for (const id of getFurnitureIds()) {
     const root = _meshes[id];
     if (!root) continue;
     root.traverse(child => {
@@ -315,7 +315,7 @@ export function getFurnitureRefParts() {
   if (ids.length === 0) return null;
 
   const descriptions = ids.map(id => {
-    const label = FURNITURE_LABELS[id] || id;
+    const label = getFurnitureLabel(id);
     return 'a reference photo for the ' + label;
   });
 

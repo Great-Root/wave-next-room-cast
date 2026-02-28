@@ -158,6 +158,7 @@ export function initFurniture(scene, camera, loader) {
         // Recompute after scaling, sit on floor
         box.setFromObject(model);
         model.position.set(item.x, -box.min.y, item.z);
+        model.rotation.y = item.rotation * Math.PI / 180;
 
         model.traverse(child => {
           if (child.isMesh) {
@@ -178,6 +179,7 @@ export function initFurniture(scene, camera, loader) {
         console.warn('Failed to load model for', item.id, '— falling back to box', err);
         const group = buildFallbackBox(item);
         group.position.set(item.x, 0, item.z);
+        group.rotation.y = item.rotation * Math.PI / 180;
         scene.add(group);
         meshes[item.id] = group;
         checkLoaded();
@@ -190,6 +192,7 @@ export function initFurniture(scene, camera, loader) {
       else group = buildFallbackBox(item);
 
       group.position.set(item.x, 0, item.z);
+      group.rotation.y = item.rotation * Math.PI / 180;
       scene.add(group);
       meshes[item.id] = group;
       checkLoaded();
@@ -278,10 +281,23 @@ export function undoLastMove(itemId) {
   // Animate without pushing to history (we just popped)
   const obj = meshes[itemId];
   if (!obj) return false;
+
+  // If a previous animation was in-flight, snap to its target first
+  const pending = pendingTarget[itemId];
+  if (pending) {
+    obj.position.x = pending.x;
+    obj.position.z = pending.z;
+    obj.rotation.y = pending.rad;
+  }
+
   const startX = obj.position.x;
   const startZ = obj.position.z;
   const startRad = obj.rotation.y;
   const targetRad = (prev.rotation != null ? prev.rotation : 0) * Math.PI / 180;
+
+  // Record undo target for potential interruption
+  pendingTarget[itemId] = { x: prev.x, z: prev.z, rad: targetRad };
+
   let deltaRad = targetRad - startRad;
   deltaRad = deltaRad - Math.round(deltaRad / (2 * Math.PI)) * 2 * Math.PI;
   const duration = 500;
@@ -293,9 +309,24 @@ export function undoLastMove(itemId) {
     obj.position.z = startZ + (prev.z - startZ) * ease;
     obj.rotation.y = startRad + deltaRad * ease;
     if (t < 1) requestAnimationFrame(step);
+    else delete pendingTarget[itemId];
   }
   requestAnimationFrame(step);
   return true;
+}
+
+function disposeObject(obj) {
+  obj.traverse(child => {
+    if (!child.isMesh) return;
+    if (child.geometry) child.geometry.dispose();
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    for (const mat of mats) {
+      for (const key of Object.keys(mat)) {
+        if (mat[key] && mat[key].isTexture) mat[key].dispose();
+      }
+      mat.dispose();
+    }
+  });
 }
 
 export function swapFurniture(itemId) {
@@ -327,9 +358,12 @@ export function swapFurniture(itemId) {
     target.color = variant.color;
   }
 
-  // Remove old mesh from scene
+  // Remove old mesh from scene and free GPU resources
   const oldMesh = meshes[itemId];
-  if (oldMesh) _scene.remove(oldMesh);
+  if (oldMesh) {
+    _scene.remove(oldMesh);
+    disposeObject(oldMesh);
+  }
   delete meshes[itemId];
 
   // Clear position history — undo across swaps makes no sense

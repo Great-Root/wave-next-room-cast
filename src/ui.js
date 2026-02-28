@@ -76,11 +76,21 @@ export function initUI({ onSend, onEnterFP, onExitFP }) {
   });
 }
 
-function handleSend() {
+async function handleSend() {
   const text = textInput.value.trim();
-  if (!text) return;
+  if (!text || btnSend.disabled) return;
   textInput.value = '';
-  if (_onSend) _onSend(text);
+  if (_onSend) {
+    btnSend.disabled = true;
+    textInput.disabled = true;
+    try {
+      await _onSend(text);
+    } finally {
+      btnSend.disabled = false;
+      textInput.disabled = false;
+      textInput.focus();
+    }
+  }
 }
 
 export function getTextInputElement() {

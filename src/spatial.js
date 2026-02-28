@@ -109,6 +109,8 @@ Response:
 }`;
 
 export let lastRoomDescription = '';
+let _busy = false;
+export function isBusy() { return _busy; }
 
 function parseSpatialResponse(responseText, knownIds) {
   let cleaned = responseText.trim();
@@ -156,12 +158,14 @@ function parseSpatialResponse(responseText, knownIds) {
 
 export async function handleTextInstruction(text) {
   if (!text.trim()) return;
+  if (_busy) return;
 
   if (!GEMINI_API_KEY) {
     setTranscript(text, 'Please set your API key in config.js first.');
     return;
   }
 
+  _busy = true;
   setStatus('Thinking...');
   setTranscript(text, 'Thinking...');
 
@@ -223,5 +227,7 @@ export async function handleTextInstruction(text) {
       setTranscript(text, 'API error. Please try again.');
     }
     setStatus('Ready');
+  } finally {
+    _busy = false;
   }
 }
