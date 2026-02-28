@@ -1,7 +1,6 @@
 // render.js — Nano Banana 2 image generation via img2img (Spec 5)
 
 import { GEMINI_API_KEY, IMAGE_MODEL } from './config.js';
-import { furnitureData } from './furniture.js';
 import { setStatus, setTranscript } from './ui.js';
 import { getFurnitureRefParts } from './furniture-interact.js';
 import * as THREE from 'three';
@@ -48,11 +47,11 @@ export function initRender(sceneRef, cameraRef, rendererRef) {
   _renderer = rendererRef;
 
   btnRender.addEventListener('click', handleRenderClick);
-
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && renderActive) exitRender();
   });
 }
+
 
 function captureCanvas() {
 
@@ -104,50 +103,16 @@ function captureTopView() {
 }
 
 function buildImg2ImgPrompt() {
-  const legend = furnitureData.map(f =>
-    f.label + ' (the ' + f.color + ' shape, ' + f.w + 'm x ' + f.d + 'm)'
-  ).join(', ');
-
-  const allowed = furnitureData.map(f => f.label).join(', ');
-
-  return `
-CRITICAL: STRICT PRESERVATION MODE (NO NEW OBJECTS)
-
-This is NOT a creative generation task.
-This is a photorealistic re-render of the EXACT input image.
-
-GROUND TRUTH RULE:
-Treat the input image as immutable ground-truth geometry.
-
-ABSOLUTE CONSTRAINTS (MUST FOLLOW):
-- Do NOT add ANY new objects of any kind.
-- Do NOT add wardrobes/cabinets/closets/shelves/dressers/plants/pictures/lamps/rugs/curtains.
-- Do NOT remove any existing object.
-- Do NOT move, rotate, or scale any object.
-- Do NOT change camera angle/perspective/framing.
-- Do NOT change wall/window/floor geometry.
-- Preserve outside scenery exactly as input.
-
-OBJECT WHITELIST (ONLY these objects may appear in the output):
-${allowed}
-
-If an object is not on the whitelist, it MUST NOT appear.
-
-FURNITURE DETAILS (keep exact placement and proportions):
-${legend}
-
-TASK:
-Convert the input 3D capture into a photorealistic interior photograph
-by ONLY improving materials, lighting, and shadows.
-No layout edits. No object edits. No additions.
-
-PHOTO STYLE:
-Neutral DSLR photo, natural daylight, soft realistic shadows,
-physically plausible materials, no stylization, no hallucinations.
-
-FINAL CHECK:
-Output must contain EXACTLY the same set of objects as the input (whitelist only).
-`;
+  return `Edit this image. This is a 3D mockup of an apartment room. ` +
+    `Replace the flat colored surfaces with photorealistic textures while keeping the exact same layout, camera angle, and composition. ` +
+    `Every object must stay in its exact position and size — only change the surface materials. ` +
+    `Only render what is visible in the image. Do not add any new objects. ` +
+    `\n\n` +
+    `Apply realistic materials to every surface you see: wood grain on wooden furniture, fabric on upholstery, ` +
+    `cotton bedding on beds, hardwood flooring, smooth plaster walls, clear glass windows, and stained wood doors. ` +
+    `\n\n` +
+    `Warm afternoon sunlight through the window, soft shadows on the floor. ` +
+    `Photorealistic interior photo, DSLR quality, 35mm lens, f/4, gentle depth of field.`;
 }
 
 function exitRender() {
@@ -180,18 +145,16 @@ export async function handleRenderClick() {
     const t0 = performance.now();
     const screenshotBase64 = captureCanvas();
     const topViewBase64 = captureTopView();
-    let stylePrompt = buildImg2ImgPrompt();
+    const stylePrompt = buildImg2ImgPrompt();
 
-    // Merge furniture reference images if available
+    // Image first, then text prompt — Gemini handles img2img edits better this way
     const furnitureRef = getFurnitureRefParts();
     const contentParts = [
-      {
-        text: (furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt) +
-          ' I am also providing a top-down birdseye view of the room layout for spatial reference. ' +
-          'Use it to understand exact furniture positions, but render from the first image\'s camera angle.'
-      },
       { inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } },
-      { inlineData: { mimeType: 'image/jpeg', data: topViewBase64 } }
+      { inlineData: { mimeType: 'image/jpeg', data: topViewBase64 } },
+      { text: (furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt) +
+        ' The second image is a top-down birdseye view of the same room for spatial reference. ' +
+        'Use it to understand exact furniture positions, but render from the first image\'s camera angle.' }
     ];
     if (furnitureRef) contentParts.push(...furnitureRef.parts);
 
@@ -215,9 +178,6 @@ export async function handleRenderClick() {
           imageConfig: {
             aspectRatio: aspectRatio,
             imageSize: '2K'
-          },
-          thinkingConfig: {
-            thinkingLevel: 'High'
           }
         }
       })
