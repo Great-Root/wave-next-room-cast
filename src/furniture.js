@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
 export const furnitureData = [
-  { id: "sofa",         label: "Sofa",         w: 2.2, d: 0.9, h: 0.85, x: 1.5, z: 2.0, color: "#4A90D9" },
-  { id: "bed",          label: "Queen Bed",    w: 1.6, d: 2.0, h: 0.50, x: 3.0, z: 5.0, color: "#7B68EE" },
-  { id: "desk",         label: "Desk",         w: 1.2, d: 0.6, h: 0.75, x: 1.0, z: 6.5, color: "#8B6914" },
-  { id: "wardrobe",     label: "Wardrobe",     w: 1.2, d: 0.6, h: 2.0,  x: 4.0, z: 1.0, color: "#5D4037" },
-  { id: "coffee_table", label: "Coffee Table", w: 1.0, d: 0.5, h: 0.45, x: 1.5, z: 3.0, color: "#A0522D" }
+  { id: "sofa",         label: "Sofa",         w: 2.2, d: 0.9, h: 0.85, x: 1.5, z: 2.0, rotation: 0, color: "#4A90D9" },
+  { id: "bed",          label: "Queen Bed",    w: 1.6, d: 2.0, h: 0.50, x: 3.0, z: 5.0, rotation: 0, color: "#7B68EE" },
+  { id: "desk",         label: "Desk",         w: 1.2, d: 0.6, h: 0.75, x: 1.0, z: 6.5, rotation: 0, color: "#8B6914" },
+  { id: "wardrobe",     label: "Wardrobe",     w: 1.2, d: 0.6, h: 2.0,  x: 4.0, z: 1.0, rotation: 0, color: "#5D4037" },
+  { id: "coffee_table", label: "Coffee Table", w: 1.0, d: 0.5, h: 0.45, x: 1.5, z: 3.0, rotation: 0, color: "#A0522D" }
 ];
 
 const MODEL_MAP = {
@@ -20,7 +20,7 @@ export const roomState = {
   room: { width: 5, length: 8, height: 2.7 },
   furniture: furnitureData.map(item => ({
     id: item.id, label: item.label, w: item.w, d: item.d, h: item.h,
-    x: item.x, z: item.z, color: item.color
+    x: item.x, z: item.z, rotation: item.rotation, color: item.color
   }))
 };
 
@@ -200,19 +200,27 @@ export function updateLabels(fpMode, fpLocked, xrPresenting) {
   });
 }
 
-export function animateFurniture(itemId, newX, newZ) {
+export function animateFurniture(itemId, newX, newZ, newRotation) {
   const obj = meshes[itemId];
   if (!obj) return;
 
   // Save position history (caller is responsible for updating roomState)
   const history = positionHistory[itemId];
   if (history) {
-    history.push({ x: obj.position.x, z: obj.position.z });
+    const currentRotDeg = obj.rotation.y * 180 / Math.PI;
+    history.push({ x: obj.position.x, z: obj.position.z, rotation: currentRotDeg });
     if (history.length > 10) history.shift();
   }
 
   const startX = obj.position.x;
   const startZ = obj.position.z;
+  const startRad = obj.rotation.y;
+  const targetRad = (newRotation != null) ? newRotation * Math.PI / 180 : startRad;
+
+  // Shortest-path angle wrapping
+  let deltaRad = targetRad - startRad;
+  deltaRad = deltaRad - Math.round(deltaRad / (2 * Math.PI)) * 2 * Math.PI;
+
   const duration = 500;
   const t0 = performance.now();
 
@@ -221,6 +229,7 @@ export function animateFurniture(itemId, newX, newZ) {
     const ease = t * (2 - t); // ease-out quad
     obj.position.x = startX + (newX - startX) * ease;
     obj.position.z = startZ + (newZ - startZ) * ease;
+    obj.rotation.y = startRad + deltaRad * ease;
     if (t < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
@@ -234,12 +243,17 @@ export function undoLastMove(itemId) {
   if (item) {
     item.x = prev.x;
     item.z = prev.z;
+    item.rotation = prev.rotation != null ? prev.rotation : 0;
   }
   // Animate without pushing to history (we just popped)
   const obj = meshes[itemId];
   if (!obj) return false;
   const startX = obj.position.x;
   const startZ = obj.position.z;
+  const startRad = obj.rotation.y;
+  const targetRad = (prev.rotation != null ? prev.rotation : 0) * Math.PI / 180;
+  let deltaRad = targetRad - startRad;
+  deltaRad = deltaRad - Math.round(deltaRad / (2 * Math.PI)) * 2 * Math.PI;
   const duration = 500;
   const t0 = performance.now();
   function step(now) {
@@ -247,6 +261,7 @@ export function undoLastMove(itemId) {
     const ease = t * (2 - t);
     obj.position.x = startX + (prev.x - startX) * ease;
     obj.position.z = startZ + (prev.z - startZ) * ease;
+    obj.rotation.y = startRad + deltaRad * ease;
     if (t < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);

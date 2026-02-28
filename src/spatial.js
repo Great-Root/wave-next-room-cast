@@ -20,11 +20,11 @@ Named zones:
 - "right wall" = X close to 5 (accounting for item half-width)
 
 Default positions (use these when the user says "reset" or "put it back"):
-- sofa: x=1.5, z=2.0
-- bed: x=3.0, z=5.0
-- desk: x=1.0, z=6.5
-- wardrobe: x=4.0, z=1.0
-- coffee_table: x=1.5, z=3.0
+- sofa: x=1.5, z=2.0, rotation=0
+- bed: x=3.0, z=5.0, rotation=0
+- desk: x=1.0, z=6.5, rotation=0
+- wardrobe: x=4.0, z=1.0, rotation=0
+- coffee_table: x=1.5, z=3.0, rotation=0
 
 Rules:
 - When the user asks to "reset" an item, move it to its default position listed above
@@ -35,6 +35,10 @@ Rules:
 - Do NOT remove furniture items. If asked to remove something, return an empty actions array and explain in user_message.
 - Do NOT rename furniture items or change their IDs
 - If an instruction is ambiguous, make a reasonable design choice
+- Rotation is in degrees (0–360) around the vertical (Y) axis. 0 = default orientation (facing toward +Z / north wall). 90 = facing left (-X). 180 = facing south. 270 = facing right (+X).
+- The "rotation" field in actions is OPTIONAL — omit it if the item's rotation should not change.
+- When the user says "face toward the window" (north wall), use rotation close to 0. "Face the door" (south wall) = 180. "Face left wall" = 90. "Face right wall" = 270.
+- When the user says "rotate X degrees", ADD that amount to the item's current rotation and normalize to 0–360.
 
 Output format — strictly this structure, nothing else:
 {
@@ -42,10 +46,11 @@ Output format — strictly this structure, nothing else:
     {
       "id": "<id from furniture list>",
       "x": <number>,
-      "z": <number>
+      "z": <number>,
+      "rotation": <number, optional, degrees 0-360>
     }
   ],
-  "room_description": "<2-3 sentence natural language description of the full room in its updated state — written as an image generation prompt: include furniture positions, style, lighting, mood>",
+  "room_description": "<2-3 sentence natural language description of the full room in its updated state — written as an image generation prompt: include furniture positions, orientations, style, lighting, mood>",
   "user_message": "<one short friendly sentence confirming what was done — no JSON terminology>"
 }
 
@@ -54,8 +59,8 @@ If nothing needs to move, return an empty actions array.
 
 EXAMPLE:
 
-User instruction: "Move the sofa near the window"
-Current room state includes: sofa at x:1.0 z:2.0 (width 2.2m, depth 0.9m)
+User instruction: "Move the sofa near the window and rotate it to face the room"
+Current room state includes: sofa at x:1.0 z:2.0 rotation:0 (width 2.2m, depth 0.9m)
 
 Response:
 {
@@ -63,11 +68,12 @@ Response:
     {
       "id": "sofa",
       "x": 2.5,
-      "z": 7.0
+      "z": 7.0,
+      "rotation": 180
     }
   ],
-  "room_description": "A 5m x 8m minimalist studio apartment with a north-facing window. A blue sofa is centered beneath the window. A queen bed sits in the middle of the room, a desk along the left wall, a wardrobe near the entrance, and a coffee table in the southern half. Warm natural lighting streams through the window, casting soft shadows. Photorealistic interior design render.",
-  "user_message": "Done — I moved the sofa to the window wall."
+  "room_description": "A 5m x 8m minimalist studio apartment with a north-facing window. A blue sofa is centered beneath the window, rotated to face the room. A queen bed sits in the middle of the room, a desk along the left wall, a wardrobe near the entrance, and a coffee table in the southern half. Warm natural lighting streams through the window, casting soft shadows. Photorealistic interior design render.",
+  "user_message": "Done — I moved the sofa to the window wall and rotated it to face the room."
 }`;
 
 export let lastRoomDescription = '';
@@ -95,6 +101,15 @@ function parseSpatialResponse(responseText, knownIds) {
     } else {
       action.x = Math.max(0, Math.min(action.x, ROOM_WIDTH));
       action.z = Math.max(0, Math.min(action.z, ROOM_LENGTH));
+    }
+
+    // Normalize rotation to 0–360, default to current rotation if missing
+    if (action.rotation != null) {
+      action.rotation = ((action.rotation % 360) + 360) % 360;
+    } else if (item) {
+      action.rotation = item.rotation || 0;
+    } else {
+      action.rotation = 0;
     }
   }
 
@@ -147,7 +162,8 @@ export async function handleTextInstruction(text) {
       if (item) {
         item.x = action.x;
         item.z = action.z;
-        animateFurniture(action.id, action.x, action.z);
+        item.rotation = action.rotation;
+        animateFurniture(action.id, action.x, action.z, action.rotation);
       }
     }
 
