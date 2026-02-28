@@ -108,6 +108,8 @@ function buildImg2ImgPrompt() {
     f.label + ' (the ' + f.color + ' shape, ' + f.w + 'm x ' + f.d + 'm)'
   ).join(', ');
 
+  const allowed = furnitureData.map(f => f.label).join(', ');
+
   return `
 CRITICAL: STRICT PRESERVATION MODE (NO NEW OBJECTS)
 
