@@ -25,6 +25,13 @@ Built for the **Gemini 3 Seoul Hackathon** (February 28, 2026).
 
 ---
 
+## Architecture
+![Uploading architecture-RoomCast Architecture.drawio.png…]()
+
+
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Model / Version |
