@@ -329,7 +329,7 @@ export function getFurnitureRefParts() {
   // Interleave label text before each reference image so the model knows what each image is for
   const parts = [];
   for (const id of ids) {
-    const label = FURNITURE_LABELS[id] || id;
+    const label = getFurnitureLabel(id);
     parts.push({ text: 'Material swatch for ' + label + ' — extract only the color, texture, and finish from this sample:' });
     parts.push({ inlineData: { mimeType: refImages[id].mime, data: refImages[id].base64 } });
   }
