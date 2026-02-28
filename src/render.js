@@ -3,6 +3,7 @@
 import { GEMINI_API_KEY, IMAGE_MODEL } from './config.js';
 import { furnitureData } from './furniture.js';
 import { setStatus, setTranscript } from './ui.js';
+import { getFurnitureRefParts } from './furniture-interact.js';
 
 let _scene, _camera, _renderer;
 let renderActive = false;
@@ -72,7 +73,15 @@ export async function handleRenderClick() {
 
   try {
     const screenshotBase64 = captureCanvas();
-    const stylePrompt = buildImg2ImgPrompt();
+    let stylePrompt = buildImg2ImgPrompt();
+
+    // Merge furniture reference images if available
+    const furnitureRef = getFurnitureRefParts();
+    const contentParts = [
+      { text: furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt },
+      { inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } }
+    ];
+    if (furnitureRef) contentParts.push(...furnitureRef.parts);
 
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + IMAGE_MODEL + ':generateContent';
     const response = await fetch(url, {
@@ -82,12 +91,7 @@ export async function handleRenderClick() {
         'x-goog-api-key': GEMINI_API_KEY
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: stylePrompt },
-            { inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } }
-          ]
-        }],
+        contents: [{ parts: contentParts }],
         generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
       })
     });

@@ -12,6 +12,7 @@ import { initUI, setStatus, setTranscript, getTextInputElement } from './ui.js';
 import { handleTextInstruction } from './spatial.js';
 import { initRender } from './render.js';
 import { initVoice } from './voice.js';
+import { initFurnitureInteract } from './furniture-interact.js';
 
 // Must init before creating RectAreaLight
 RectAreaLightUniformsLib.init();
@@ -212,6 +213,7 @@ initUI({
 // --- Init API modules ---
 initRender(scene, camera, renderer);
 initVoice();
+initFurnitureInteract(scene, camera, renderer, meshes, () => fpMode);
 
 // --- Resize ---
 window.addEventListener('resize', () => {
