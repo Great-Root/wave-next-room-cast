@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
 export const furnitureData = [
-  { id: "sofa",         label: "Sofa",         w: 2.2, d: 0.9, h: 0.85, x: 1.0, z: 2.0, color: "#4A90D9" },
+  { id: "sofa",         label: "Sofa",         w: 2.2, d: 0.9, h: 0.85, x: 1.5, z: 2.0, color: "#4A90D9" },
   { id: "bed",          label: "Queen Bed",    w: 1.6, d: 2.0, h: 0.50, x: 3.0, z: 5.0, color: "#7B68EE" },
-  { id: "desk",         label: "Desk",         w: 1.2, d: 0.6, h: 0.75, x: 0.5, z: 6.5, color: "#8B6914" },
+  { id: "desk",         label: "Desk",         w: 1.2, d: 0.6, h: 0.75, x: 1.0, z: 6.5, color: "#8B6914" },
   { id: "wardrobe",     label: "Wardrobe",     w: 1.2, d: 0.6, h: 2.0,  x: 4.0, z: 1.0, color: "#5D4037" },
-  { id: "coffee_table", label: "Coffee Table", w: 1.0, d: 0.5, h: 0.45, x: 1.5, z: 1.2, color: "#A0522D" }
+  { id: "coffee_table", label: "Coffee Table", w: 1.0, d: 0.5, h: 0.45, x: 1.5, z: 3.0, color: "#A0522D" }
 ];
 
 const MODEL_MAP = {

@@ -19,7 +19,15 @@ Named zones:
 - "left wall" = X close to 0 (accounting for item half-width)
 - "right wall" = X close to 5 (accounting for item half-width)
 
+Default positions (use these when the user says "reset" or "put it back"):
+- sofa: x=1.5, z=2.0
+- bed: x=3.0, z=5.0
+- desk: x=1.0, z=6.5
+- wardrobe: x=4.0, z=1.0
+- coffee_table: x=1.5, z=3.0
+
 Rules:
+- When the user asks to "reset" an item, move it to its default position listed above
 - Only move items explicitly mentioned or clearly implied
 - Keep all items within room boundaries, accounting for item width and depth from center
 - Approximate positions are acceptable — precision is not required
