@@ -114,7 +114,9 @@ function buildImg2ImgPrompt() {
     `soft woven fabric on upholstered furniture, ` +
     `crisp cotton bedding with a cozy duvet on beds, ` +
     `natural wood grain on tables and desks, ` +
-    `clear glass with a faint outdoor view through windows, ` +
+    `clear glass windows with a view of the Han River — lush realistic trees along the riverside park in the foreground, ` +
+    `the wide calm river reflecting the sky in the middle ground, ` +
+    `and high-rise apartment towers lining the far bank, ` +
     `and dark stained wood with a brass handle on doors. ` +
     `\n\n` +
     `The scene is lit by warm golden-hour afternoon sunlight streaming through the window, ` +

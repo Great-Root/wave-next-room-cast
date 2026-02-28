@@ -133,38 +133,95 @@ export function buildRoom(scene) {
   northGroup.add(glass);
   scene.add(northGroup);
 
-  // --- Outdoor scene (visible through window) ---
+  // --- Outdoor scene: Han River view (visible through window) ---
   const outdoorGroup = new THREE.Group();
 
-  // Ground plane
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a7c3f, roughness: 0.9 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set(W / 2, -0.05, L + 15);
-  outdoorGroup.add(ground);
+  // Riverside embankment
+  const embankMat = new THREE.MeshStandardMaterial({ color: 0x9e9e8e, roughness: 0.85 });
+  const embankment = new THREE.Mesh(new THREE.PlaneGeometry(40, 5), embankMat);
+  embankment.rotation.x = -Math.PI / 2;
+  embankment.position.set(W / 2, -0.05, L + 2.5);
+  outdoorGroup.add(embankment);
 
-  // Trees at varying distances
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.8 });
-  const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2d6b30, roughness: 0.7 });
-  const treeSpots = [[1, L + 4], [4, L + 5], [0.5, L + 8], [5, L + 7], [2.5, L + 11], [-1, L + 6], [6.5, L + 9]];
-  for (let i = 0; i < treeSpots.length; i++) {
-    const tx = treeSpots[i][0], tz = treeSpots[i][1];
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.8, 6), trunkMat);
-    trunk.position.set(tx, 0.9, tz);
-    outdoorGroup.add(trunk);
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 6), foliageMat);
-    crown.position.set(tx, 2.3, tz);
-    outdoorGroup.add(crown);
+  // Riverside park strip
+  const parkMat = new THREE.MeshStandardMaterial({ color: 0x5a8f4a, roughness: 0.9 });
+  const parkStrip = new THREE.Mesh(new THREE.PlaneGeometry(40, 3), parkMat);
+  parkStrip.rotation.x = -Math.PI / 2;
+  parkStrip.position.set(W / 2, -0.03, L + 6.5);
+  outdoorGroup.add(parkStrip);
+
+  // Han River water surface
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x3a7ca5, roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.85
+  });
+  const river = new THREE.Mesh(new THREE.PlaneGeometry(60, 18), waterMat);
+  river.rotation.x = -Math.PI / 2;
+  river.position.set(W / 2, -0.15, L + 17);
+  outdoorGroup.add(river);
+
+  // Far bank
+  const farBankMat = new THREE.MeshStandardMaterial({ color: 0x6b8e5a, roughness: 0.9 });
+  const farBank = new THREE.Mesh(new THREE.PlaneGeometry(60, 6), farBankMat);
+  farBank.rotation.x = -Math.PI / 2;
+  farBank.position.set(W / 2, -0.05, L + 29);
+  outdoorGroup.add(farBank);
+
+  // Railing
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.6 });
+  for (let rx = -8; rx <= 14; rx += 1.5) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 6), railMat);
+    post.position.set(rx, 0.5, L + 5);
+    outdoorGroup.add(post);
+  }
+  const railBar = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 24, 8), railMat);
+  railBar.rotation.z = Math.PI / 2;
+  railBar.position.set(W / 2, 0.9, L + 5);
+  outdoorGroup.add(railBar);
+
+  // Bridge
+  const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x7a8a9a, roughness: 0.5, metalness: 0.3 });
+  const bridgeDeck = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 22), bridgeMat);
+  bridgeDeck.position.set(12, 1.5, L + 17);
+  outdoorGroup.add(bridgeDeck);
+  for (const pz of [L + 10, L + 17, L + 24]) {
+    const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.6, 3, 0.6), bridgeMat);
+    pylon.position.set(12, 0.5, pz);
+    outdoorGroup.add(pylon);
+  }
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.7 });
+  const cableTower = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5, 0.3), cableMat);
+  cableTower.position.set(12, 4, L + 17);
+  outdoorGroup.add(cableTower);
+
+  // Apartment complexes on the far bank
+  const bldgColors = [0x8899aa, 0x95a5b5, 0xb0bec5, 0xa0aab4];
+  const apartments = [
+    [-6, L + 32, 2.5, 14, 2], [-3, L + 33, 2, 18, 2], [0, L + 32, 2.5, 16, 2],
+    [3, L + 34, 2, 20, 2], [6, L + 33, 2.5, 15, 2], [9, L + 32, 2, 17, 2],
+    [12, L + 34, 2.5, 12, 2], [15, L + 33, 2, 19, 2],
+    [-5, L + 36, 2, 16, 2], [1, L + 37, 2.5, 22, 2], [7, L + 36, 2, 14, 2],
+    [13, L + 37, 2.5, 18, 2],
+  ];
+  for (let i = 0; i < apartments.length; i++) {
+    const a = apartments[i];
+    const bMat = new THREE.MeshStandardMaterial({ color: bldgColors[i % bldgColors.length], roughness: 0.6 });
+    const bldg = new THREE.Mesh(new THREE.BoxGeometry(a[2], a[3], a[4]), bMat);
+    bldg.position.set(a[0], a[3] / 2, a[1]);
+    outdoorGroup.add(bldg);
   }
 
-  // Distant buildings
-  const bldgMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, roughness: 0.6 });
-  const bldgs = [[-2, L + 20, 3, 7, 3], [3, L + 24, 4, 10, 4], [8, L + 22, 3, 6, 3]];
-  for (let i = 0; i < bldgs.length; i++) {
-    const bd = bldgs[i];
-    const bldg = new THREE.Mesh(new THREE.BoxGeometry(bd[2], bd[3], bd[4]), bldgMat);
-    bldg.position.set(bd[0], bd[3] / 2, bd[1]);
-    outdoorGroup.add(bldg);
+  // Riverside park trees (simple shapes — detail comes from render prompt)
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.8 });
+  const foliageMat = new THREE.MeshStandardMaterial({ color: 0x3d8b40, roughness: 0.7 });
+  const treeSpots = [[0, L + 6], [3.5, L + 6.5], [7, L + 6], [-3, L + 7]];
+  for (let i = 0; i < treeSpots.length; i++) {
+    const tx = treeSpots[i][0], tz = treeSpots[i][1];
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 1.6, 6), trunkMat);
+    trunk.position.set(tx, 0.8, tz);
+    outdoorGroup.add(trunk);
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 6), foliageMat);
+    crown.position.set(tx, 2.0, tz);
+    outdoorGroup.add(crown);
   }
 
   scene.add(outdoorGroup);
