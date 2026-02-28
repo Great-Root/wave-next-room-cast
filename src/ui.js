@@ -18,14 +18,20 @@ export function setStatus(text) {
   status.textContent = text;
 }
 
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 export function setTranscript(instruction, response) {
   if (response === undefined) {
     // Single-arg: display as a reply message
-    transcript.innerHTML = '<span class="reply">' + instruction + '</span>';
+    transcript.innerHTML = '<span class="reply">' + escapeHTML(instruction) + '</span>';
   } else {
     transcript.innerHTML =
-      '<span class="instr">You: ' + instruction + '</span><br>' +
-      '<span class="reply">' + response + '</span>';
+      '<span class="instr">You: ' + escapeHTML(instruction) + '</span><br>' +
+      '<span class="reply">' + escapeHTML(response) + '</span>';
   }
 }
 

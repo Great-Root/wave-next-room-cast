@@ -26,7 +26,6 @@ function setMicState(state) {
     case 'disconnected':
       btnMic.textContent = 'MIC';
       btnMic.disabled = false;
-      setStatus('Ready');
       break;
     case 'connecting':
       btnMic.textContent = '...';
@@ -124,7 +123,17 @@ export function connectLiveAPI() {
   const wsUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=' + GEMINI_API_KEY;
   ws = new WebSocket(wsUrl);
 
+  // Timeout if connection takes too long
+  const connectTimeout = setTimeout(() => {
+    if (micState === 'connecting') {
+      console.warn('Voice connection timed out');
+      if (ws) { ws.close(); ws = null; }
+      setMicState('disconnected');
+    }
+  }, 10000);
+
   ws.onopen = () => {
+    clearTimeout(connectTimeout);
     ws.send(JSON.stringify({
       setup: {
         model: 'models/' + LIVE_API_MODEL,
@@ -139,11 +148,16 @@ export function connectLiveAPI() {
     }));
   };
 
-  ws.onmessage = (event) => {
-    if (event.data instanceof Blob || event.data instanceof ArrayBuffer) return;
+  ws.onmessage = async (event) => {
+    let raw = event.data;
+    if (raw instanceof Blob) {
+      raw = await raw.text();
+    } else if (raw instanceof ArrayBuffer) {
+      raw = new TextDecoder().decode(raw);
+    }
 
     let msg;
-    try { msg = JSON.parse(event.data); }
+    try { msg = JSON.parse(raw); }
     catch { return; }
 
     if (msg.setupComplete) {
@@ -165,10 +179,15 @@ export function connectLiveAPI() {
       if (voiceTranscript.trim()) {
         const transcribedText = voiceTranscript.trim();
         setTranscript(transcribedText + ' (voice)', 'Processing...');
-        handleTextInstruction(transcribedText);
+        handleTextInstruction(transcribedText).then(() => {
+          setMicState('ready');
+        }).catch(() => {
+          setMicState('ready');
+        });
+      } else {
+        setMicState('ready');
       }
       voiceTranscript = '';
-      setMicState('ready');
     }
   };
 
@@ -209,5 +228,9 @@ export function initVoice() {
   if (btnMic) {
     btnMic.addEventListener('click', handleMicClick);
   }
-  if (GEMINI_API_KEY) connectLiveAPI();
+  // Connect in background — don't block the UI or change button state until connected
+  if (GEMINI_API_KEY) {
+    // Small delay so the page finishes rendering first
+    setTimeout(() => connectLiveAPI(), 1000);
+  }
 }

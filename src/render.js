@@ -47,6 +47,8 @@ function buildImg2ImgPrompt() {
 function exitRender() {
   renderActive = false;
   renderOverlay.classList.remove('active');
+  const hint = renderOverlay.querySelector('.hint');
+  if (hint) hint.classList.remove('fade');
   btnRender.textContent = 'Render';
   setStatus('Ready');
 }
@@ -95,7 +97,11 @@ export async function handleRenderClick() {
     }
 
     const data = await response.json();
-    const parts = data.candidates[0].content.parts;
+    const candidate = data.candidates && data.candidates[0];
+    if (!candidate || !candidate.content || !candidate.content.parts) {
+      throw new Error('Empty or filtered response from API');
+    }
+    const parts = candidate.content.parts;
     const imagePart = parts.find(p => p.inlineData);
     if (!imagePart) throw new Error('No image in response');
 

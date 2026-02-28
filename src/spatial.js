@@ -78,8 +78,16 @@ function parseSpatialResponse(responseText, knownIds) {
   parsed.actions = parsed.actions.filter(a => knownIds.includes(a.id));
 
   for (const action of parsed.actions) {
-    action.x = Math.max(0, Math.min(action.x, ROOM_WIDTH));
-    action.z = Math.max(0, Math.min(action.z, ROOM_LENGTH));
+    const item = roomState.furniture.find(f => f.id === action.id);
+    if (item) {
+      const halfW = (item.w || item.width_m || 0) / 2;
+      const halfD = (item.d || item.depth_m || 0) / 2;
+      action.x = Math.max(halfW, Math.min(action.x, ROOM_WIDTH - halfW));
+      action.z = Math.max(halfD, Math.min(action.z, ROOM_LENGTH - halfD));
+    } else {
+      action.x = Math.max(0, Math.min(action.x, ROOM_WIDTH));
+      action.z = Math.max(0, Math.min(action.z, ROOM_LENGTH));
+    }
   }
 
   return parsed;
@@ -118,7 +126,11 @@ export async function handleTextInstruction(text) {
     }
 
     const data = await response.json();
-    const responseText = data.candidates[0].content.parts[0].text;
+    const candidate = data.candidates && data.candidates[0];
+    if (!candidate || !candidate.content || !candidate.content.parts || !candidate.content.parts.length) {
+      throw new Error('Empty or filtered response from API');
+    }
+    const responseText = candidate.content.parts[0].text;
     const knownIds = roomState.furniture.map(f => f.id);
     const result = parseSpatialResponse(responseText, knownIds);
 
