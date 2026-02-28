@@ -60,42 +60,114 @@ export function buildRoom(scene) {
   eastGroup.add(eastMesh);
   scene.add(eastGroup);
 
-  // North wall (z=ROOM_LENGTH) — window wall
+  // North wall (z=ROOM_LENGTH) — window wall, split around opening
   const northGroup = new THREE.Group();
-  const northMesh = new THREE.Mesh(new THREE.BoxGeometry(W, H, wallThick), wallMat);
-  northMesh.position.set(W / 2, H / 2, L);
-  northMesh.receiveShadow = true;
-  northGroup.add(northMesh);
-
-  // Window frame + glass
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.6 });
   const winCY = H * 0.55;
+  const winHW = 1.3, winHH = 0.78;
+  const winL = W / 2 - winHW, winR = W / 2 + winHW;
+  const winB = winCY - winHH, winT = winCY + winHH;
+
+  // Left wall piece (x: 0 → winL)
+  const nLeft = new THREE.Mesh(new THREE.BoxGeometry(winL, H, wallThick), wallMat);
+  nLeft.position.set(winL / 2, H / 2, L);
+  nLeft.receiveShadow = true;
+  northGroup.add(nLeft);
+
+  // Right wall piece (x: winR → W)
+  const nRightW = W - winR;
+  const nRight = new THREE.Mesh(new THREE.BoxGeometry(nRightW, H, wallThick), wallMat);
+  nRight.position.set(winR + nRightW / 2, H / 2, L);
+  nRight.receiveShadow = true;
+  northGroup.add(nRight);
+
+  // Top piece (above window)
+  const nTopH = H - winT;
+  const nTop = new THREE.Mesh(new THREE.BoxGeometry(winR - winL, nTopH, wallThick), wallMat);
+  nTop.position.set(W / 2, winT + nTopH / 2, L);
+  nTop.receiveShadow = true;
+  northGroup.add(nTop);
+
+  // Bottom piece (below window)
+  const nBot = new THREE.Mesh(new THREE.BoxGeometry(winR - winL, winB, wallThick), wallMat);
+  nBot.position.set(W / 2, winB / 2, L);
+  nBot.receiveShadow = true;
+  northGroup.add(nBot);
+
+  // Window sill
+  const sillMat = new THREE.MeshStandardMaterial({ color: 0xe0d8cc, roughness: 0.5 });
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(winR - winL + 0.1, 0.04, 0.12), sillMat);
+  sill.position.set(W / 2, winB - 0.02, L - 0.04);
+  northGroup.add(sill);
+
+  // Window frame
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.6 });
 
   const frameTop = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 0.08), frameMat);
-  frameTop.position.set(W / 2, winCY + 0.78, L - 0.01);
+  frameTop.position.set(W / 2, winT, L - 0.01);
 
   const frameBot = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 0.08), frameMat);
-  frameBot.position.set(W / 2, winCY - 0.78, L - 0.01);
+  frameBot.position.set(W / 2, winB, L - 0.01);
 
   const frameL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.62, 0.08), frameMat);
-  frameL.position.set(W / 2 - 1.3, winCY, L - 0.01);
+  frameL.position.set(winL, winCY, L - 0.01);
 
   const frameR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.62, 0.08), frameMat);
-  frameR.position.set(W / 2 + 1.3, winCY, L - 0.01);
+  frameR.position.set(winR, winCY, L - 0.01);
 
   const frameMid = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.56, 0.06), frameMat);
   frameMid.position.set(W / 2, winCY, L - 0.01);
 
   northGroup.add(frameTop, frameBot, frameL, frameR, frameMid);
 
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0xa8d8ea, transparent: true, opacity: 0.25,
-    roughness: 0.05, metalness: 0.1
+  // Glass — MeshPhysicalMaterial with transmission for realistic see-through glass
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    transmission: 1.0,
+    roughness: 0.05,
+    thickness: 0.5,
+    ior: 1.5,
+    reflectivity: 0.5,
   });
   const glass = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.5), glassMat);
   glass.position.set(W / 2, winCY, L - 0.02);
   northGroup.add(glass);
   scene.add(northGroup);
+
+  // --- Outdoor scene (visible through window) ---
+  const outdoorGroup = new THREE.Group();
+
+  // Ground plane
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a7c3f, roughness: 0.9 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(W / 2, -0.05, L + 15);
+  outdoorGroup.add(ground);
+
+  // Trees at varying distances
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.8 });
+  const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2d6b30, roughness: 0.7 });
+  const treeSpots = [[1, L + 4], [4, L + 5], [0.5, L + 8], [5, L + 7], [2.5, L + 11], [-1, L + 6], [6.5, L + 9]];
+  for (let i = 0; i < treeSpots.length; i++) {
+    const tx = treeSpots[i][0], tz = treeSpots[i][1];
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.8, 6), trunkMat);
+    trunk.position.set(tx, 0.9, tz);
+    outdoorGroup.add(trunk);
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 6), foliageMat);
+    crown.position.set(tx, 2.3, tz);
+    outdoorGroup.add(crown);
+  }
+
+  // Distant buildings
+  const bldgMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, roughness: 0.6 });
+  const bldgs = [[-2, L + 20, 3, 7, 3], [3, L + 24, 4, 10, 4], [8, L + 22, 3, 6, 3]];
+  for (let i = 0; i < bldgs.length; i++) {
+    const bd = bldgs[i];
+    const bldg = new THREE.Mesh(new THREE.BoxGeometry(bd[2], bd[3], bd[4]), bldgMat);
+    bldg.position.set(bd[0], bd[3] / 2, bd[1]);
+    outdoorGroup.add(bldg);
+  }
+
+  scene.add(outdoorGroup);
 
   // South wall (z=0) — door wall
   const southGroup = new THREE.Group();
