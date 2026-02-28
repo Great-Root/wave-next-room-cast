@@ -9,9 +9,9 @@ export const furnitureData = [
 ];
 
 const MODEL_MAP = {
-  sofa:         { file: '../tests/models/couch_pillows.gltf', scale: 1.8, rotY: 0 },
-  bed:          { file: '../tests/models/bed_double_A.gltf',  scale: 2.0, rotY: 0 },
-  wardrobe:     { file: '../tests/models/cabinet_medium.gltf', scale: 2.2, rotY: 0 },
+  sofa:         { file: './models/couch_pillows.gltf', scale: 1.8, rotY: 0 },
+  bed:          { file: './models/bed_double_A.gltf',  scale: 2.0, rotY: 0 },
+  wardrobe:     { file: './models/cabinet_medium.gltf', scale: 2.2, rotY: 0 },
 };
 
 // Mutable room state (source of truth for positions)
