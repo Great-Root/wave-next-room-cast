@@ -103,16 +103,24 @@ function captureTopView() {
 }
 
 function buildImg2ImgPrompt() {
-  return `Edit this image. This is a 3D mockup of an apartment room. ` +
-    `Replace the flat colored surfaces with photorealistic textures while keeping the exact same layout, camera angle, and composition. ` +
-    `Every object must stay in its exact position and size — only change the surface materials. ` +
-    `Only render what is visible in the image. Do not add any new objects. ` +
+  return `Change only the surface textures and materials in this image. ` +
+    `This is a 3D layout mockup of an apartment room. Every piece of furniture, every wall, and the floor ` +
+    `should remain exactly where they are, at the same size, same rotation, and same shape. ` +
+    `The camera angle and framing stay identical to the input. ` +
     `\n\n` +
-    `Apply realistic materials to every surface you see: wood grain on wooden furniture, fabric on upholstery, ` +
-    `cotton bedding on beds, hardwood flooring, smooth plaster walls, clear glass windows, and stained wood doors. ` +
+    `Re-skin each visible surface with photorealistic materials: ` +
+    `rich warm-toned oak hardwood with visible grain on the floor, ` +
+    `smooth off-white plaster on the walls, ` +
+    `soft woven fabric on upholstered furniture, ` +
+    `crisp cotton bedding with a cozy duvet on beds, ` +
+    `natural wood grain on tables and desks, ` +
+    `clear glass with a faint outdoor view through windows, ` +
+    `and dark stained wood with a brass handle on doors. ` +
     `\n\n` +
-    `Warm afternoon sunlight through the window, soft shadows on the floor. ` +
-    `Photorealistic interior photo, DSLR quality, 35mm lens, f/4, gentle depth of field.`;
+    `The scene is lit by warm golden-hour afternoon sunlight streaming through the window, ` +
+    `casting long soft shadows across the hardwood floor. Gentle fill light bounces off the white walls. ` +
+    `Captured with a full-frame DSLR, 35mm wide-angle lens at f/4, ` +
+    `producing a subtle depth of field. The mood is calm, inviting, and lived-in.`;
 }
 
 function exitRender() {
@@ -147,16 +155,22 @@ export async function handleRenderClick() {
     const topViewBase64 = captureTopView();
     const stylePrompt = buildImg2ImgPrompt();
 
-    // Image first, then text prompt — Gemini handles img2img edits better this way
     const furnitureRef = getFurnitureRefParts();
-    const contentParts = [
-      { inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } },
-      { inlineData: { mimeType: 'image/jpeg', data: topViewBase64 } },
-      { text: (furnitureRef ? stylePrompt + ' ' + furnitureRef.extraPrompt : stylePrompt) +
-        ' The second image is a top-down birdseye view of the same room for spatial reference. ' +
-        'Use it to understand exact furniture positions, but render from the first image\'s camera angle.' }
-    ];
-    if (furnitureRef) contentParts.push(...furnitureRef.parts);
+    const contentParts = [];
+
+    // 1. Reference images first (if any) — established as texture swatches, not layout
+    if (furnitureRef) {
+      contentParts.push(...furnitureRef.parts);
+      contentParts.push({ text: furnitureRef.extraPrompt });
+    }
+
+    // 2. Prompt text + room images last — model treats the last image as the edit target
+    contentParts.push({ text: stylePrompt +
+      ' The following two images are the room to edit. ' +
+      'The top-down birdseye view is for spatial reference only. ' +
+      'Render from the camera angle of the final image.' });
+    contentParts.push({ inlineData: { mimeType: 'image/jpeg', data: topViewBase64 } });
+    contentParts.push({ inlineData: { mimeType: 'image/jpeg', data: screenshotBase64 } });
 
     // Compute aspect ratio from actual canvas dimensions
     const canvasW = _renderer.domElement.width;

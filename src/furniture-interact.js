@@ -320,14 +320,19 @@ export function getFurnitureRefParts() {
   });
 
   const extraPrompt =
-    'IMPORTANT: I have attached reference photos for specific furniture. ' +
-    'The references include: ' + descriptions.join('; ') + '. ' +
-    'Make each piece of furniture in the rendered image match the style, color, material, ' +
-    'and overall look of its corresponding reference photo as closely as possible.';
+    'The images above are material swatches, not furniture to place. ' +
+    'Extract only the color, texture, and material finish from each swatch ' +
+    'and apply it like paint onto the corresponding furniture in the room below. ' +
+    'The angle, shape, and composition of each swatch photo are irrelevant — ' +
+    'the furniture in the room keeps its exact position, size, shape, and orientation.';
 
-  const parts = ids.map(id => ({
-    inlineData: { mimeType: refImages[id].mime, data: refImages[id].base64 }
-  }));
+  // Interleave label text before each reference image so the model knows what each image is for
+  const parts = [];
+  for (const id of ids) {
+    const label = FURNITURE_LABELS[id] || id;
+    parts.push({ text: 'Material swatch for ' + label + ' — extract only the color, texture, and finish from this sample:' });
+    parts.push({ inlineData: { mimeType: refImages[id].mime, data: refImages[id].base64 } });
+  }
 
   return { extraPrompt, parts };
 }
