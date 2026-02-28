@@ -20,7 +20,7 @@ const MODEL_MAP = {
 const SWAP_CATALOG = {
   sofa: [
     { label: "Sofa",     w: 2.2, d: 0.9, h: 0.85, color: "#4A90D9", model: './models/couch_pillows.gltf' },
-    { label: "Loveseat", w: 1.5, d: 0.85, h: 0.80, color: "#4A90D9", model: './models/couch_pillows.gltf' },
+    { label: "Loveseat", w: 1.5, d: 0.85, h: 0.80, color: "#4A90D9", model: './models/couch.gltf' },
   ]
 };
 const swapState = {};  // tracks current variant index per item id
